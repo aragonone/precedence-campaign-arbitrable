@@ -96,7 +96,7 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
   })
 
   context('Forward', () => {
-    createEvidence(submitter1, arbitrable => async (disputeId, evidence, finished, params) => arbitrable.forwardEvidence(disputeId, submitter1, evidence, finished, params))
+    createEvidence(submitter1, arbitrable => async (disputeId, evidence, finished, params) => arbitrable.submitEvidenceFor(disputeId, submitter1, evidence, finished, params))
   })
 
   context('Create and submit', () => {
@@ -159,9 +159,9 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
   })
 
   context('Interface', () => {
-    it('conforms interface id', async () => {
-      const interfaceId = await arbitrable.interfaceID()
-      assert.equal(interfaceId, '0x88f3ee69', `interface doesn't match`)
+    it('supports arbitrable interface', async () => {
+      const supports = await arbitrable.supportsInterface('0x88f3ee69')
+      assert.isTrue(supports, `doesn't support interface`)
     })
   })
 })
