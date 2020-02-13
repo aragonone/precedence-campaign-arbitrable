@@ -158,6 +158,17 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
     })
   })
 
+  context('Set owner', () => {
+    it('fails to set owner  if not owner', async () => {
+      await assertRevert(arbitrable.setOwner(other, { from: other }), ERROR_SENDER_NOT_ALLOWED)
+    })
+
+    it('changes owner', async () => {
+      const receipt = await arbitrable.setOwner(other, { from: owner })
+      assert.equal(await arbitrable.owner(), other, `owner doesn't match`)
+    })
+  })
+
   context('Interface', () => {
     it('supports arbitrable interface', async () => {
       const supports = await arbitrable.supportsInterface('0x88f3ee69')

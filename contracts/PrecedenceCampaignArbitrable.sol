@@ -61,6 +61,10 @@ contract PrecedenceCampaignArbitrable is IArbitrable {
         emit Ruled(IArbitrator(msg.sender), _disputeId, _ruling);
     }
 
+    function setOwner(address _owner) external only(owner) {
+        owner = _owner;
+    }
+
     function _createDispute(uint256 _possibleRulings, bytes memory _metadata) internal returns (uint256) {
         (address recipient, ERC20 feeToken, uint256 disputeFees) = arbitrator.getDisputeFees();
         feeToken.approve(recipient, disputeFees);
