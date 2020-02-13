@@ -18,7 +18,7 @@ const getRawLog = (receipt, contract, eventName) => {
 }
 
 contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submitter2]) => {
-  const ERROR_NOT_ALLOWED = 'PCA_NOT_ALLOWED'
+  const ERROR_SENDER_NOT_ALLOWED = 'PCA_SENDER_NOT_ALLOWED'
 
   const FEE_AMOUNT = bigExp(1, 16)
   const SUBSCRIPTION_AMOUNT = bigExp(2, 16)
@@ -39,7 +39,7 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
 
   context('Create dispute', () => {
     it('fails to create dispute if not owner', async () => {
-      await assertRevert(arbitrable.createDispute(POSSIBLE_RULINGS, METADATA, { from: other }), ERROR_NOT_ALLOWED)
+      await assertRevert(arbitrable.createDispute(POSSIBLE_RULINGS, METADATA, { from: other }), ERROR_SENDER_NOT_ALLOWED)
     })
 
     it('event is emitted', async () => {
@@ -71,7 +71,7 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
       })
 
       it('fails to submit if not owner', async () => {
-        await assertRevert(method(arbitrable)(disputeId, EVIDENCE, true, { from: other }), ERROR_NOT_ALLOWED)
+        await assertRevert(method(arbitrable)(disputeId, EVIDENCE, true, { from: other }), ERROR_SENDER_NOT_ALLOWED)
       })
 
       const submitEvidence = (finished) => {
@@ -104,7 +104,7 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
     const EVIDENCE_2 = '0x6789'
 
     it('fails to create dispute if not owner', async () => {
-      await assertRevert(arbitrable.createAndSubmit(POSSIBLE_RULINGS, METADATA, submitter1, submitter2, EVIDENCE_1, EVIDENCE_2, { from: other }), ERROR_NOT_ALLOWED)
+      await assertRevert(arbitrable.createAndSubmit(POSSIBLE_RULINGS, METADATA, submitter1, submitter2, EVIDENCE_1, EVIDENCE_2, { from: other }), ERROR_SENDER_NOT_ALLOWED)
     })
 
     it('event is emitted', async () => {
@@ -128,7 +128,7 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
     })
 
     it('fails to close evidence period if not owner', async () => {
-      await assertRevert(arbitrable.closeEvidencePeriod(disputeId, { from: other }), ERROR_NOT_ALLOWED)
+      await assertRevert(arbitrable.closeEvidencePeriod(disputeId, { from: other }), ERROR_SENDER_NOT_ALLOWED)
     })
 
     it('closes evidence period', async () => {

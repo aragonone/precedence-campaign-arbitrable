@@ -7,13 +7,13 @@ import "@aragon/court/contracts/arbitration/IArbitrator.sol";
 contract PrecedenceCampaignArbitrable is IArbitrable {
     //bytes4 public constant ERC165_INTERFACE = ERC165_INTERFACE_ID;
     //bytes4 public constant ARBITRABLE_INTERFACE = ARBITRABLE_INTERFACE_ID;
-    string public constant ERROR_NOT_ALLOWED = "PCA_NOT_ALLOWED";
+    string public constant ERROR_SENDER_NOT_ALLOWED = "PCA_SENDER_NOT_ALLOWED";
 
     address public owner;
     IArbitrator public arbitrator;
 
     modifier only(address _who) {
-        require(msg.sender == _who, ERROR_NOT_ALLOWED);
+        require(msg.sender == _who, ERROR_SENDER_NOT_ALLOWED);
         _;
     }
 

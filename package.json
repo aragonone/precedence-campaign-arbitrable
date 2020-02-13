@@ -8,8 +8,6 @@
     "/abi",
     "/build",
     "/contracts",
-    "/docs",
-    "/scripts",
     "/test"
   ],
   "scripts": {
