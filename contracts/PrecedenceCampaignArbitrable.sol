@@ -2,11 +2,11 @@ pragma solidity ^0.5.8;
 
 import "@aragon/court/contracts/arbitration/IArbitrable.sol";
 import "@aragon/court/contracts/arbitration/IArbitrator.sol";
+import "@aragon/court/contracts/treasury/ITreasury.sol";
+import "@aragon/court/contracts/court/controller/Controller.sol";
 
 
 contract PrecedenceCampaignArbitrable is IArbitrable {
-    //bytes4 public constant ERC165_INTERFACE = ERC165_INTERFACE_ID;
-    //bytes4 public constant ARBITRABLE_INTERFACE = ARBITRABLE_INTERFACE_ID;
     string public constant ERROR_SENDER_NOT_ALLOWED = "PCA_SENDER_NOT_ALLOWED";
 
     address public owner;
@@ -63,6 +63,11 @@ contract PrecedenceCampaignArbitrable is IArbitrable {
 
     function setOwner(address _owner) external only(owner) {
         owner = _owner;
+    }
+
+    function withdraw(ERC20 _token, address _to, uint256 _amount) external only(owner) {
+        ITreasury treasury = ITreasury(Controller(address(arbitrator)).getTreasury());
+        treasury.withdraw(_token, _to, _amount);
     }
 
     function _createDispute(uint256 _possibleRulings, bytes memory _metadata) internal returns (uint256) {
