@@ -4,10 +4,15 @@ import "@aragon/court/contracts/arbitration/IArbitrable.sol";
 import "@aragon/court/contracts/arbitration/IArbitrator.sol";
 import "@aragon/court/contracts/treasury/ITreasury.sol";
 import "@aragon/court/contracts/court/controller/Controller.sol";
+import "@aragon/court/contracts/lib/os/ERC20.sol";
+import "@aragon/court/contracts/lib/os/SafeERC20.sol";
 
 
 contract PrecedenceCampaignArbitrable is IArbitrable {
+    using SafeERC20 for ERC20;
+
     string public constant ERROR_SENDER_NOT_ALLOWED = "PCA_SENDER_NOT_ALLOWED";
+    string public constant ERROR_RECOVER_FUNDS_FAILED = "PCA_RECOVER_FUNDS_FAILED";
 
     address public owner;
     IArbitrator public arbitrator;
@@ -68,6 +73,10 @@ contract PrecedenceCampaignArbitrable is IArbitrable {
     function withdraw(ERC20 _token, address _to, uint256 _amount) external only(owner) {
         ITreasury treasury = ITreasury(Controller(address(arbitrator)).getTreasury());
         treasury.withdraw(_token, _to, _amount);
+    }
+
+    function recoverFunds(address _token, address payable _to, uint256 _amount) external only(owner) {
+        require(ERC20(_token).transfer(_to, _amount), ERROR_RECOVER_FUNDS_FAILED);
     }
 
     function _createDispute(uint256 _possibleRulings, bytes memory _metadata) internal returns (uint256) {

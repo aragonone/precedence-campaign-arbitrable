@@ -1,3 +1,4 @@
+const { assertBn } = require('@aragon/court/test/helpers/asserts/assertBn')
 const { bn, bigExp } = require('@aragon/court/test/helpers/lib/numbers')
 const { assertEvent } = require('@aragon/court/test/helpers/asserts/assertEvent')
 const { assertRevert } = require('@aragon/court/test/helpers/asserts/assertThrow')
@@ -175,6 +176,39 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
     context('when the sender is not the owner', () => {
       it('reverts', async () => {
         await assertRevert(arbitrable.withdraw(token.address, other, bn(10), { from: other }), ERROR_SENDER_NOT_ALLOWED)
+      })
+    })
+  })
+
+  describe('recover funds', () => {
+    const amount = bigExp(10000000, 18)
+
+    context('when the sender is the owner', () => {
+      context('when the arbitrable has funds', () => {
+        beforeEach('fund Arbitrable with tokens', async () => {
+          await token.mint(arbitrable.address, amount)
+        })
+
+        it('transfers the tokens to the recipient address', async () => {
+          const previousBalance = await token.balanceOf(other)
+
+          await arbitrable.recoverFunds(token.address, other, amount, { from: owner })
+
+          const currentBalance = await token.balanceOf(other)
+          assertBn(currentBalance, previousBalance.add(amount), 'current balance does not match')
+        })
+      })
+
+      context('when the arbitrable does not have funds', () => {
+        it('reverts', async () => {
+          await assertRevert(arbitrable.recoverFunds(token.address, other, amount, { from: owner }), 'ERROR_NOT_ENOUGH_BALANCE')
+        })
+      })
+    })
+
+    context('when the sender is not the owner', () => {
+      it('reverts', async () => {
+        await assertRevert(arbitrable.recoverFunds(token.address, other, amount, { from: other }), ERROR_SENDER_NOT_ALLOWED)
       })
     })
   })
