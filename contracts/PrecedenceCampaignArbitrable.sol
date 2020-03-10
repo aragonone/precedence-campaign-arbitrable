@@ -4,13 +4,20 @@ import "@aragon/court/contracts/arbitration/IArbitrable.sol";
 import "@aragon/court/contracts/arbitration/IArbitrator.sol";
 import "@aragon/court/contracts/treasury/ITreasury.sol";
 import "@aragon/court/contracts/court/controller/Controller.sol";
+import "@aragon/court/contracts/lib/os/SafeERC20.sol";
 
 
 contract PrecedenceCampaignArbitrable is IArbitrable {
+    using SafeERC20 for ERC20;
+
     string public constant ERROR_SENDER_NOT_ALLOWED = "PCA_SENDER_NOT_ALLOWED";
+    string private constant ERROR_INSUFFICIENT_RECOVER_FUNDS = "PCA_INSUFFICIENT_RECOVER_FUNDS";
+    string private constant ERROR_RECOVER_TOKEN_FUNDS_FAILED = "PCA_RECOVER_TOKEN_FUNDS_FAILED";
 
     address public owner;
     IArbitrator public arbitrator;
+
+    event RecoverFunds(ERC20 token, address recipient, uint256 balance);
 
     modifier only(address _who) {
         require(msg.sender == _who, ERROR_SENDER_NOT_ALLOWED);
@@ -68,6 +75,18 @@ contract PrecedenceCampaignArbitrable is IArbitrable {
     function withdraw(ERC20 _token, address _to, uint256 _amount) external only(owner) {
         ITreasury treasury = ITreasury(Controller(address(arbitrator)).getTreasury());
         treasury.withdraw(_token, _to, _amount);
+    }
+
+    /**
+    * @notice Transfer all `_token` tokens to `_to`
+    * @param _token ERC20 token to be recovered
+    * @param _to Address of the recipient that will be receive all the funds of the requested token
+    */
+    function recoverFunds(ERC20 _token, address _to) external only(owner) {
+        uint256 balance = _token.balanceOf(address(this));
+        require(balance > 0, ERROR_INSUFFICIENT_RECOVER_FUNDS);
+        require(_token.safeTransfer(_to, balance), ERROR_RECOVER_TOKEN_FUNDS_FAILED);
+        emit RecoverFunds(_token, _to, balance);
     }
 
     function _createDispute(uint256 _possibleRulings, bytes memory _metadata) internal returns (uint256) {

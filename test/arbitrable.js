@@ -1,4 +1,5 @@
 const { bn, bigExp } = require('@aragon/court/test/helpers/lib/numbers')
+const { assertBn } = require('@aragon/court/test/helpers/asserts/assertBn')
 const { assertEvent } = require('@aragon/court/test/helpers/asserts/assertEvent')
 const { assertRevert } = require('@aragon/court/test/helpers/asserts/assertThrow')
 const { decodeEventsOfType } = require('@aragon/court/test/helpers/lib/decodeEvent')
@@ -20,6 +21,7 @@ const assertRawEvent = (receipt, contract, eventName, args = {}, index = 0) => {
 
 contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submitter2]) => {
   const ERROR_SENDER_NOT_ALLOWED = 'PCA_SENDER_NOT_ALLOWED'
+  const ERROR_INSUFFICIENT_RECOVER_FUNDS = 'PCA_INSUFFICIENT_RECOVER_FUNDS'
 
   const FEE_AMOUNT = bigExp(1, 16)
   const SUBSCRIPTION_AMOUNT = bigExp(2, 16)
@@ -175,6 +177,30 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
     context('when the sender is not the owner', () => {
       it('reverts', async () => {
         await assertRevert(arbitrable.withdraw(token.address, other, bn(10), { from: other }), ERROR_SENDER_NOT_ALLOWED)
+      })
+    })
+  })
+
+  describe('Recover funds', () => {
+    context('when the sender is the owner', () => {
+      it('recovers tokens from the treasury', async () => {
+        const balance = await token.balanceOf(arbitrable.address)
+        const receipt = await arbitrable.recoverFunds(token.address, other, { from: owner })
+
+        await assertBn(await token.balanceOf(arbitrable.address), 0, 'arbitrable balance should be zero')
+        await assertBn(await token.balanceOf(other), balance, 'receiver balance doesn’t match')
+        assertEvent(receipt, 'RecoverFunds', { token: token.address, recipient: other, balance })
+      })
+
+      it('can’t recover twice', async () => {
+        await arbitrable.recoverFunds(token.address, other, { from: owner })
+        await assertRevert(arbitrable.recoverFunds(token.address, other, { from: owner }), ERROR_INSUFFICIENT_RECOVER_FUNDS)
+      })
+    })
+
+    context('when the sender is not the owner', () => {
+      it('reverts', async () => {
+        await assertRevert(arbitrable.recoverFunds(token.address, other, { from: other }), ERROR_SENDER_NOT_ALLOWED)
       })
     })
   })
