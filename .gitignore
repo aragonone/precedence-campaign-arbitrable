@@ -14,16 +14,3 @@ coverageEnv/
 coverage.json
 allFiredEvents
 scTopics
-
-# Logs
-yarn-debug.log*
-yarn-error.log*
-
-# Editors
-.vscode/
-.idea/*
-
-# Misc
-.DS_Store
-
-bytecode

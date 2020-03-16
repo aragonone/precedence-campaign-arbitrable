@@ -1,20 +1,22 @@
-const { assertRevert } = require('@aragon/court/test/helpers/asserts/assertThrow')
 const { assertBn } = require('@aragon/court/test/helpers/asserts/assertBn')
-const { getEventArgument } = require('@aragon/test-helpers/events')
 const { bn, bigExp } = require('@aragon/court/test/helpers/lib/numbers')
+const { assertEvent } = require('@aragon/court/test/helpers/asserts/assertEvent')
+const { assertRevert } = require('@aragon/court/test/helpers/asserts/assertThrow')
+const { decodeEventsOfType } = require('@aragon/court/test/helpers/lib/decodeEvent')
 
 const ERC20 = artifacts.require('ERC20Mock')
+const CourtTreasury = artifacts.require('TreasuryMock')
 const ArbitratorMock = artifacts.require('ArbitratorMock')
 const PrecedenceCampaignArbitrable = artifacts.require('PrecedenceCampaignArbitrable')
 
-const getRawLog = (receipt, contract, eventName) => {
-  const eventAbi = contract.abi.filter(o => o.type === 'event' && o.name === eventName)[0]
-  const rawLog = receipt.receipt.rawLogs.filter(l => l.topics[0] === eventAbi.signature)[0]
-  return web3.eth.abi.decodeLog(
-    eventAbi.inputs,
-    rawLog.data,
-    rawLog.topics.slice(1)
-  )
+const getRawEventAttribute = (receipt, contract, eventName, attribute) => {
+  const logs = decodeEventsOfType(receipt, contract.abi, eventName)
+  return logs[0].args[attribute]
+}
+
+const assertRawEvent = (receipt, contract, eventName, args = {}, index = 0) => {
+  const logs = decodeEventsOfType(receipt, contract.abi, eventName)
+  assertEvent({ logs }, eventName, args, index)
 }
 
 contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submitter2]) => {
@@ -25,15 +27,15 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
   const POSSIBLE_RULINGS = 2
   const METADATA = '0x1234'
 
-  let arbitrator, arbitrable
-  let disputeId
+  let arbitrator, arbitrable, disputeId, token
 
   beforeEach('Deploy contracts', async () => {
-    const token = await ERC20.new('Test Token', 'TT', 18)
+    token = await ERC20.new('Test Token', 'TT', 18)
     arbitrator = await ArbitratorMock.new(token.address, FEE_AMOUNT, SUBSCRIPTION_AMOUNT)
     arbitrable = await PrecedenceCampaignArbitrable.new(owner, arbitrator.address)
+  })
 
-    // make sure Arbitrable has funds
+  beforeEach('fund arbitrable', async () => {
     await token.mint(arbitrable.address, FEE_AMOUNT.mul(bn(1000)))
   })
 
@@ -44,21 +46,12 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
 
     it('event is emitted', async () => {
       const receipt = await arbitrable.createDispute(POSSIBLE_RULINGS, METADATA, { from: owner })
-      const rawLog = getRawLog(receipt, ArbitratorMock, 'NewDispute')
-      assert.equal(rawLog.possibleRulings, POSSIBLE_RULINGS, `possible rulings don't match`)
-      assert.equal(rawLog.metadata, METADATA, `Metadata doesn't match`)
+      assertRawEvent(receipt, ArbitratorMock, 'NewDispute', { possibleRulings: POSSIBLE_RULINGS, metadata: METADATA })
     })
   })
 
   const checkEvidenceEvent = (receipt, index, submitter, evidence, finished) => {
-    const eventDisputeId = getEventArgument(receipt, 'EvidenceSubmitted', 'disputeId', index).toNumber()
-    const eventSubmitter = getEventArgument(receipt, 'EvidenceSubmitted', 'submitter', index)
-    const eventEvidence = getEventArgument(receipt, 'EvidenceSubmitted', 'evidence', index)
-    const eventFinished = getEventArgument(receipt, 'EvidenceSubmitted', 'finished', index)
-    assertBn(eventDisputeId, disputeId, `dispute id doesn't match`)
-    assert.equal(eventSubmitter, submitter, `submitter doesn't match`)
-    assert.equal(eventEvidence, evidence, `evidence doesn't match`)
-    assert.equal(eventFinished, finished, `finished doesn't match`)
+    assertEvent(receipt, 'EvidenceSubmitted', { disputeId, submitter, evidence, finished }, index)
   }
 
   const createEvidence = (submitter, method) => {
@@ -67,7 +60,7 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
 
       beforeEach('Create dispute', async () => {
         const receipt = await arbitrable.createDispute(POSSIBLE_RULINGS, METADATA, { from: owner })
-        disputeId = getRawLog(receipt, ArbitratorMock, 'NewDispute').disputeId
+        disputeId = getRawEventAttribute(receipt, ArbitratorMock, 'NewDispute', 'disputeId')
       })
 
       it('fails to submit if not owner', async () => {
@@ -109,10 +102,8 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
 
     it('event is emitted', async () => {
       const receipt = await arbitrable.createAndSubmit(POSSIBLE_RULINGS, METADATA, submitter1, submitter2, EVIDENCE_1, EVIDENCE_2, { from: owner })
-      const rawLog = getRawLog(receipt, ArbitratorMock, 'NewDispute')
-      assert.equal(rawLog.possibleRulings, POSSIBLE_RULINGS, `possible rulings don't match`)
-      assert.equal(rawLog.metadata, METADATA, `Metadata doesn't match`)
 
+      assertRawEvent(receipt, ArbitratorMock, 'NewDispute', { possibleRulings: POSSIBLE_RULINGS, metadata: METADATA })
       checkEvidenceEvent(receipt, 0, submitter1, EVIDENCE_1, false)
       checkEvidenceEvent(receipt, 1, submitter2, EVIDENCE_2, false)
     })
@@ -124,7 +115,7 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
 
     beforeEach('Create dispute and submit evidence', async () => {
       const receipt = await arbitrable.createAndSubmit(POSSIBLE_RULINGS, METADATA, submitter1, submitter2, EVIDENCE_1, EVIDENCE_2, { from: owner })
-      disputeId = getRawLog(receipt, ArbitratorMock, 'NewDispute').disputeId
+      disputeId = getRawEventAttribute(receipt, ArbitratorMock, 'NewDispute', 'disputeId')
     })
 
     it('fails to close evidence period if not owner', async () => {
@@ -133,8 +124,7 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
 
     it('closes evidence period', async () => {
       const receipt = await arbitrable.closeEvidencePeriod(disputeId, { from: owner })
-      const rawLog = getRawLog(receipt, ArbitratorMock, 'EvidencePeriodClosed')
-      assertBn(rawLog.disputeId, disputeId, `dispute id doesn't match`)
+      assertRawEvent(receipt, ArbitratorMock, 'EvidencePeriodClosed', { disputeId })
     })
   })
 
@@ -143,7 +133,7 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
 
     beforeEach('Create dispute and set ruling', async () => {
       const receipt = await arbitrable.createDispute(POSSIBLE_RULINGS, METADATA, { from: owner })
-      disputeId = getRawLog(receipt, ArbitratorMock, 'NewDispute').disputeId
+      disputeId = getRawEventAttribute(receipt, ArbitratorMock, 'NewDispute', 'disputeId')
 
       // set ruling
       await arbitrator.setRuling(disputeId, RULING)
@@ -151,20 +141,17 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
 
     it('rules', async () => {
       const receipt = await arbitrator.executeRuling(disputeId)
-      const rawLog = getRawLog(receipt, PrecedenceCampaignArbitrable, 'Ruled')
-      assert.equal(rawLog.arbitrator, arbitrator.address, `arbitrator doesn't match`)
-      assertBn(rawLog.disputeId, disputeId, `dispute id doesn't match`)
-      assert.equal(rawLog.ruling, RULING, `ruling doesn't match`)
+      assertRawEvent(receipt, PrecedenceCampaignArbitrable, 'Ruled', { arbitrator: arbitrator.address, disputeId, ruling: RULING })
     })
   })
 
   context('Set owner', () => {
-    it('fails to set owner  if not owner', async () => {
+    it('fails to set owner if not owner', async () => {
       await assertRevert(arbitrable.setOwner(other, { from: other }), ERROR_SENDER_NOT_ALLOWED)
     })
 
     it('changes owner', async () => {
-      const receipt = await arbitrable.setOwner(other, { from: owner })
+      await arbitrable.setOwner(other, { from: owner })
       assert.equal(await arbitrable.owner(), other, `owner doesn't match`)
     })
   })
@@ -173,6 +160,56 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
     it('supports arbitrable interface', async () => {
       const supports = await arbitrable.supportsInterface('0x88f3ee69')
       assert.isTrue(supports, `doesn't support interface`)
+    })
+  })
+
+  describe('withdraw', () => {
+    context('when the sender is the owner', () => {
+      it('withdraws tokens from the treasury', async () => {
+        const receipt = await arbitrable.withdraw(token.address, other, bn(10), { from: owner })
+
+        const logs = decodeEventsOfType(receipt, CourtTreasury.abi, 'Withdraw')
+        assertEvent({ logs }, 'Withdraw', { token: token.address, to: other, amount: bn(10) })
+      })
+    })
+
+    context('when the sender is not the owner', () => {
+      it('reverts', async () => {
+        await assertRevert(arbitrable.withdraw(token.address, other, bn(10), { from: other }), ERROR_SENDER_NOT_ALLOWED)
+      })
+    })
+  })
+
+  describe('recover funds', () => {
+    const amount = bigExp(10000000, 18)
+
+    context('when the sender is the owner', () => {
+      context('when the arbitrable has funds', () => {
+        beforeEach('fund Arbitrable with tokens', async () => {
+          await token.mint(arbitrable.address, amount)
+        })
+
+        it('transfers the tokens to the recipient address', async () => {
+          const previousBalance = await token.balanceOf(other)
+
+          await arbitrable.recoverFunds(token.address, other, amount, { from: owner })
+
+          const currentBalance = await token.balanceOf(other)
+          assertBn(currentBalance, previousBalance.add(amount), 'current balance does not match')
+        })
+      })
+
+      context('when the arbitrable does not have funds', () => {
+        it('reverts', async () => {
+          await assertRevert(arbitrable.recoverFunds(token.address, other, amount, { from: owner }), 'ERROR_NOT_ENOUGH_BALANCE')
+        })
+      })
+    })
+
+    context('when the sender is not the owner', () => {
+      it('reverts', async () => {
+        await assertRevert(arbitrable.recoverFunds(token.address, other, amount, { from: other }), ERROR_SENDER_NOT_ALLOWED)
+      })
     })
   })
 })
