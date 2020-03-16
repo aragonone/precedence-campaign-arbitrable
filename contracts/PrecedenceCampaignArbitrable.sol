@@ -76,7 +76,7 @@ contract PrecedenceCampaignArbitrable is IArbitrable {
     }
 
     function recoverFunds(address _token, address payable _to, uint256 _amount) external only(owner) {
-        require(ERC20(_token).transfer(_to, _amount), ERROR_RECOVER_FUNDS_FAILED);
+        require(ERC20(_token).safeTransfer(_to, _amount), ERROR_RECOVER_FUNDS_FAILED);
     }
 
     function _createDispute(uint256 _possibleRulings, bytes memory _metadata) internal returns (uint256) {

@@ -21,6 +21,7 @@ const assertRawEvent = (receipt, contract, eventName, args = {}, index = 0) => {
 
 contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submitter2]) => {
   const ERROR_SENDER_NOT_ALLOWED = 'PCA_SENDER_NOT_ALLOWED'
+  const ERROR_RECOVER_FUNDS_FAILED = 'PCA_RECOVER_FUNDS_FAILED'
 
   const FEE_AMOUNT = bigExp(1, 16)
   const SUBSCRIPTION_AMOUNT = bigExp(2, 16)
@@ -201,7 +202,7 @@ contract('Precedence Campaign Arbitrable', ([_, owner, other, submitter1, submit
 
       context('when the arbitrable does not have funds', () => {
         it('reverts', async () => {
-          await assertRevert(arbitrable.recoverFunds(token.address, other, amount, { from: owner }), 'ERROR_NOT_ENOUGH_BALANCE')
+          await assertRevert(arbitrable.recoverFunds(token.address, other, amount, { from: owner }), ERROR_RECOVER_FUNDS_FAILED)
         })
       })
     })
