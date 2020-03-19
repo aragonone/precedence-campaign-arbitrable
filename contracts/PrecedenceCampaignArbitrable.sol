@@ -11,8 +11,8 @@ import "@aragon/court/contracts/lib/os/SafeERC20.sol";
 contract PrecedenceCampaignArbitrable is IArbitrable {
     using SafeERC20 for ERC20;
 
-    string public constant ERROR_SENDER_NOT_ALLOWED = "PCA_SENDER_NOT_ALLOWED";
-    string public constant ERROR_RECOVER_FUNDS_FAILED = "PCA_RECOVER_FUNDS_FAILED";
+    string private constant ERROR_SENDER_NOT_ALLOWED = "PCA_SENDER_NOT_ALLOWED";
+    string private constant ERROR_RECOVER_FUNDS_FAILED = "PCA_RECOVER_FUNDS_FAILED";
 
     address public owner;
     IArbitrator public arbitrator;
